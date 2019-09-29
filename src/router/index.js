@@ -1,23 +1,49 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-import Home from '@/views/Home.vue'
+import NProgress from 'nprogress'
+import store from '@/store'
+import { Message } from 'element-ui'
 
+NProgress.configure({ showSpinner: false })
 Vue.use(Router)
+let routes = []
 
-export default new Router({
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: Home
-    },
-    {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (about.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import(/* webpackChunkName: "about" */ '@/views/About.vue')
-    }
-  ]
+const requireContext = require.context(
+  './',
+  true,
+  /\.js$/
+)
+requireContext.keys().forEach(filename => {
+  if (filename === './index.js') return
+  const routerModule = requireContext(filename)
+  routes = [...routes, ...(routerModule.default || routerModule)]
 })
+
+const router = new Router({
+  routes
+})
+router.addRoutes([
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('@/views/Home.vue')
+  }
+])
+
+router.beforeEach((to, from, next) => {
+  NProgress.start()
+  let requireAuth = to.matched.some(item => item.meta.auth)
+  if (requireAuth && !store.state.user.isLogin) {
+    Message.error({
+      message: '请先登陆再访问该页面'
+    })
+    NProgress.done()
+    return
+  }
+  next()
+})
+router.afterEach((to, from) => {
+  NProgress.done()
+})
+
+export default router

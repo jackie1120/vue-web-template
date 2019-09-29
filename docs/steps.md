@@ -72,11 +72,76 @@ NProgress能够为我们在路由跳转，ajax请求加载过程中提供友好�
 
 ## 强制代码规范检查  
 * husky和lint-staged(使用vue cli已经有集成了，可以直接使用https://cli.vuejs.org/guide/cli-service.html#git-hooks)，实现代码规范性检查
-  
-* 优化路由
-  * 创建router文件夹，存放所有路由文件。中大型项目路由根据模块分文件夹放置，使用`require.context`进行自动加载
-  * 添加全局路由守卫，用于页面加载状态展示和页面级别的权限控制
 
-* 利用element的样式变量，添加辅助样式，实现界面风格一致
-* 全局组件自动加载注册
-* 国际化支持
+# 路由管理
+根据项目的规模考虑是否分模块对路由进行管理，在一般的中大型项目中不会将路由放置在一个文件中，会根据模块来处理，并使用动态加载和自动加载的方式实现路由的灵活配置加载
+* 使用`require.context`进行自动加载
+* 使用`router.addRoutes`实现路由的动态加载
+* 在index.js添加全局路由守卫，用于页面加载状态展示和页面级别的权限控制
+* [optional]使用路由的meta来实现前端页面级访问权限控制，meta保存页面的元信息如：title、访问权限等
+
+
+# 全局组件自动加载注册
+对于一些特定的自定义组件，我们有时候会需要在整个项目里面多处使用，如果使用频率不高那么可以在页面引用即可；如果在项目中频繁使用到建议做成全局的组件；如果在多个项目中都会使用到建议做成package的方式使用plugin的机制引入到各个项目中。这里先介绍如何使用全局组件自动加载注册机制。
+
+在官方文档[Automatic Global Registration of Base Components](https://vuejs.org/v2/guide/components-registration.html#Automatic-Global-Registration-of-Base-Components)
+
+# vue.config.js配置
+## 使用loaderOption实现统一的样式变量定义(包括element的样式变量)
+使用`css.loaderOptions`能够将配置选项传递给特定的loaders，详情可参考[css.loaderOptions](https://cli.vuejs.org/config/#css-loaderoptions)，在实际项目中会使用这个选项来处理
+* sass全局变量
+```js
+module.exports = {
+  css: {
+    loaderOptions: {
+      // pass options to sass-loader
+      // @/ is an alias to src/
+      // so this assumes you have a file named `src/variables.sass`
+      sass: {
+        data: `@import "~@/variables.sass"`
+      },
+      // by default the `sass` option will apply to both syntaxes
+      // because `scss` syntax is also processed by sass-loader underlyingly
+      // but when configuring the `data` option
+      // `scss` syntax requires an semicolon at the end of a statement, while `sass` syntax requires none
+      // in that case, we can target the `scss` syntax separately using the `scss` option
+      scss: {
+        data: `@import "~@/variables.scss";`
+      },
+      // pass Less.js Options to less-loader
+      less:{
+        // http://lesscss.org/usage/#less-options-strict-units `Global Variables`
+        // `primary` is global variables fields name
+        globalVars: {
+          primary: '#fff'
+        }
+      }
+    }
+  }
+}
+```
+* postcss px到vw或rem的转换(移动端)
+这部分内容详情请查看移动端界面适配解决方案
+
+## alias别名
+未避免啊在使用import引入模块的时候输入过多的路径信息，可以使用alias来解决此问题(默认@符号的使用就是使用该方法)
+```js
+module.exports = {
+  devServer: {
+    proxy: {
+      '/api': {
+        target: process.env.VUE_APP_PROXY,
+        pathRewrite: { '^/api': '' },
+        changeOrigin: true
+      }
+    }
+  },
+  chainWebpack: config => {
+    config.resolve.alias
+      .set('services', path.resolve(__dirname, './src/services'))
+  }
+}
+```
+
+
+# 国际化支持
